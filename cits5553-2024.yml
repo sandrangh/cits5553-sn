@@ -1,0 +1,15 @@
+name: cits5508-2024
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - matplotlib
+  - pandas
+  - scikit-learn
+  - notebook
+  - jupyterlab
+  - seaborn
+  - python-graphviz
+  - graphviz
+  - openpyxl
