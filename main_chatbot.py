@@ -129,5 +129,9 @@ if __name__ == '__main__':
                 print(f"Switched to {assistant.context}. How can I help you?")
                 continue
         
-        response = assistant.process_chat(user_input)
-        print("Assistant:", response)
+        try:
+            response = assistant.process_chat(user_input)
+            print("Assistant:", response)
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            print("Let's try that again. Could you rephrase your question?")
