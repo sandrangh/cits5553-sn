@@ -1,4 +1,8 @@
+# Import necessary libraries
 import os
+import time
+import uuid
+import csv
 from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -9,9 +13,25 @@ from langchain.chains import create_retrieval_chain
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
 
+# Load environment variables
 load_dotenv()
 
 import constants
+
+# Function to generate a unique filename for CSV logging
+def generate_log_filename():
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    session_id = str(uuid.uuid4())
+    return f"chat_logs_{timestamp}_{session_id}.csv"
+
+# Generate unique log filename for session
+log_filename = generate_log_filename()
+
+# Create and open the CSV file for writing
+with open(log_filename, mode='w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+    # Write header row in CSV
+    writer.writerow(['Question', 'Response'])
 
 class Assistant:
     def __init__(self, file_path, context):
@@ -23,14 +43,17 @@ class Assistant:
         self.is_new_user = False
         self.question_count = 0
 
+    # Load text from file
     def load_text(self, file_path):
         loader = TextLoader(file_path, encoding='utf-8')
         return loader.load()
 
+    # Create vector database
     def create_db(self, docs):
         embedding = OpenAIEmbeddings(openai_api_key=constants.APIKEY)
         return Chroma.from_documents(docs, embedding=embedding)
 
+    # Create conversation chain
     def create_chain(self):
         model = ChatOpenAI(
             model="gpt-4o-mini",
@@ -38,6 +61,7 @@ class Assistant:
             api_key=constants.APIKEY
         )
 
+        # Define the conversation prompt
         prompt = ChatPromptTemplate.from_messages([
     ("system", "You are an AI assistant designed to help users navigate the Atlas map. Your responses must be safe, ethical, and compliant with copyright laws. You cannot generate or engage with harmful content."),
     ("system", "Context: {context}"),
@@ -50,14 +74,14 @@ class Assistant:
                "\n3. Relate all responses back to the user's original query about map navigation."
                "\n4. Do not interpret data or discuss statistics. Clarify that your role is strictly for navigation assistance."
                "\n5. Strictly address Atlas map navigation queries. For unrelated questions, respond exactly with: 'I apologise, but I'm specifically designed to help with the Australian Child and Youth Wellbeing Atlas platform. Could you please ask a question about using the Atlas map?'"
-               "\n6. For any complex queries that contain 'specific navigation paths', 'specific instructions', or 'detailed steps', refer the user to the user guide and respond exactly with: ‘For detailed step-by-step instructions on this complex navigation, please refer to the Atlas platform user guide (https://australianchildatlas.com/s/Atlas-platform-user-guide.pdf)'."
+               "\n6. For any complex queries that contain 'specific navigation paths', 'specific instructions', or 'detailed steps', refer the user to the user guide and respond exactly with: 'For detailed step-by-step instructions on this complex navigation, please refer to the Atlas platform user guide (https://australianchildatlas.com/s/Atlas-platform-user-guide.pdf)'."
                "\n7. Refuse to engage with inappropriate, profanity or off-topic content."
                "\n8. Do not assist in system misuse or unauthorised access."
                "\n9. Respect intellectual property rights; do not reproduce copyrighted content."
                "\n10. Maintain user privacy; do not request or store personal information."),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
-    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest one relevant follow-up query that you think the user may ask.")
+    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest one relevant follow-up query that you think the user may ask, starting with 'Would you like to know more about:'.")
         ])
 
         chain = create_stuff_documents_chain(
@@ -84,6 +108,7 @@ class Assistant:
             chain
         )
 
+    # Process user input and generate response
     def process_chat(self, question):
         response = self.chain.invoke({
             "input": question,
@@ -99,25 +124,30 @@ class Assistant:
         self.question_count += 1
         return main_answer, follow_up
 
+    # Split response into main answer and follow-up question
     def split_response(self, response):
         parts = response.split("Would you like to know more about:")
         main_answer = parts[0].strip()
-        follow_up = parts[1].strip() if len(parts) > 1 else ""
+        follow_up = "Would you like to know more about:" + parts[1].strip() if len(parts) > 1 else ""
         return main_answer, follow_up
 
+    # Reset chat history
     def reset_chat_history(self):
         self.chat_history = []
         self.question_count = 0
 
+# Specific assistant for map navigation
 class MapAssistant(Assistant):
     def __init__(self):
         super().__init__('prepared_data_ver3.txt', 'map navigation')
 
+# Main execution
 if __name__ == '__main__':
     assistant = MapAssistant()
 
     print("Hello! Welcome to the Atlas Map Navigation Assistant! Are you new to our interactive map platform? (Yes/No)")
 
+    # Get user's experience level
     while True:
         user_response = input("You: ").lower()
         if user_response in ['yes', 'y', 'no', 'n']:
@@ -125,6 +155,7 @@ if __name__ == '__main__':
         else:
             print("Please answer with 'Yes' or 'No'.")
 
+    # Handle new user
     if user_response in ['yes', 'y']:
         assistant.is_new_user = True
         print("Great! Let's start by familiarising you with the map platform.")
@@ -150,26 +181,35 @@ if __name__ == '__main__':
     else:
         print("Welcome back! What can I help you with today? You can type 'exit' at any time to end the conversation.")
 
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() == 'exit':
-            print("Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
-            break
+    # Main conversation loop
+    with open(log_filename, mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        
+        while True:
+            user_input = input("You: ")
+            if user_input.lower() == 'exit':
+                print("Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
+                break
 
-        try:
-            main_response, follow_up = assistant.process_chat(user_input)
-            print("Assistant:", main_response)
-            if follow_up:
-                print("Assistant: Would you like to know more about:", follow_up)
-            
-            if assistant.question_count % 5 == 0:
-                print("Assistant: Do you still need any more assistance or have any other questions? (Yes/No)")
-                continue_chat = input("You: ").lower()
-                if continue_chat in ['no', 'n']:
-                    print("Assistant: Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
-                    break
-                elif continue_chat not in ['yes', 'y']:
-                    print("Assistant: Sure thing! What other questions do you have about the Atlas map?")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            print("Let's try that again. Could you rephrase your question?")
+            try:
+                main_response, follow_up = assistant.process_chat(user_input)
+                print("Assistant:", main_response)
+                
+                # Log the question and response in the CSV file
+                writer.writerow([user_input, main_response])
+                
+                if follow_up:
+                    print("Assistant:", follow_up)
+                
+                # Check if it's time to ask if the user needs more assistance
+                if assistant.question_count % 5 == 0:
+                    print("Assistant: Do you still need any more assistance or have any other questions? (Yes/No)")
+                    continue_chat = input("You: ").lower()
+                    if continue_chat in ['no', 'n']:
+                        print("Assistant: Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
+                        break
+                    elif continue_chat not in ['yes', 'y']:
+                        print("Assistant: Sure thing! What other questions do you have about the Atlas map?")
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                print("Let's try that again. Could you rephrase your question?")
