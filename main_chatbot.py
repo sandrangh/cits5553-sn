@@ -20,6 +20,7 @@ class Assistant:
         self.vectorStore = self.create_db(self.docs)
         self.chain = self.create_chain()
         self.chat_history = []
+        self.is_new_user = False
 
     def load_text(self, file_path):
         loader = TextLoader(file_path, encoding='utf-8')
@@ -31,31 +32,32 @@ class Assistant:
 
     def create_chain(self):
         model = ChatOpenAI(
-            model="gpt-4o-mini",  # Make sure this is the correct model name
+            model="gpt-4o-mini",
             temperature=0.2,
             api_key=constants.APIKEY
         )
 
         prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful AI assistant chatbot specifically focused giving a tutorial on how to navigate the Atlas map, based on {context}. "
+    ("system", "You are a helpful AI assistant chatbot specifically focused on giving a tutorial on how to navigate the Atlas map, based on {context}. "
                "Your primary goal is to help users with {context} only."),
     ("system", "Context: {context}"),
     ("system", "Instructions for {context}:"
                "\n1. If given a one-word or vague query, ask for clarification before proceeding."
-               "\n2. Once the query is clear, these should be the first instructions to guide the user as follows:"
-               "\n   a. If the context is to find data on a specific theme or indicator:"
-               "\n      - Direct users to the Atlas maps"
-               "\n      - Instruct users to use the theme search box in Atlas maps"
-               "\n      - Explain that available data will appear as a dropdown"
-               "\n3. Only provide more specific guidance if the user requests additional help after the initial instructions."
-               "\n4. Always relate your responses back to the user's original query."),
+               "\n2. For all users, provide the following general steps for finding data on a specific theme or indicator:"
+               "\n   - Direct users to open the Atlas maps"
+               "\n   - Instruct users to use the theme or indicator search box in Atlas maps"
+               "\n   - Explain that if data is available on the topic, it will appear as a dropdown"
+               "\n   - Encourage exploration of different themes and indicators"
+               "\n   - Do not interpret specific data or findings"
+               "\n3. Always relate your responses back to the user's original query, regardless of the theme or indicator."),
         MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
     ("system", "Remember to be concise, clear, and helpful in your responses - give a maximum of 3 sentences. "
                "Focus exclusively on {context} and do not discuss other topics unless explicitly asked."
-               "Always start with general guidance before providing specific details.")
+               "Keep explanations simple and encourage exploration of various themes and indicators."
+               "After giving guidance, suggest one relevant follow-up question about exploring different themes or indicators.")
         ])
-
+        
         chain = create_stuff_documents_chain(
             llm=model,
             prompt=prompt
@@ -100,7 +102,14 @@ class MapAssistant(Assistant):
 if __name__ == '__main__':
     assistant = MapAssistant()
 
-    print(f"Hello! Welcome to the Atlas Map Navigation Assistant! I'm here to guide you through using our interactive map platform. What would you like to know?")
+    print(f"Hello! Welcome to the Atlas Map Navigation Assistant! Are you new to our interactive map platform? (Yes/No)")
+    
+    user_response = input("You: ").lower()
+    if user_response in ['yes', 'y']:
+        assistant.is_new_user = True
+        print("Great! I'm here to guide you through using our platform. Let's start with the basics. What would you like to know about our map?")
+    else:
+        print("Welcome back! I'm here to assist you with any questions about our map platform. What can I help you with today?")
 
     while True:
         user_input = input("You: ")
