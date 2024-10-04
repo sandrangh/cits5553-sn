@@ -37,7 +37,7 @@ class Assistant:
         )
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", f"Answer the user's questions based on the {self.context} context: {{context}}"),
+            ("system", f"Answer the user's questions based on the {self.context} context: {{context}}. Start the conversation with: If given incomplete questions i.e., one-word input, please ask follow up questions. Also, ask follow up questions if the question is very general."),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{input}")
         ])
@@ -97,7 +97,7 @@ def create_assistant(topic):
 
 def select_topic():
     while True:
-        print("What would you like help with today? Map navigation or Data dashboard?")
+        print("Hello! What would you like help with today? Map navigation or Data dashboard?")
         user_choice = input("You: ").lower()
         if "map" in user_choice:
             return "map"
@@ -110,14 +110,15 @@ if __name__ == '__main__':
     topic = select_topic()
     assistant = create_assistant(topic)
 
-    print(f"Great! I'll help you with {topic}. What would you like to know?")
-    
+    print(f"Great! I'll help you with {assistant.context}. What would you like to know?")
+
     while True:
         user_input = input("You: ")
         if user_input.lower() == 'exit':
             print("Ending conversation. Goodbye!")
             break
 
+        # Topic switch logic
         other_topic = "dashboard" if topic == "map" else "map"
         if other_topic in user_input.lower():
             print(f"It seems you're asking about {other_topic}. Would you like to switch topics? (yes/no)")
@@ -125,10 +126,10 @@ if __name__ == '__main__':
             if switch in ['yes', 'y']:
                 topic = other_topic
                 assistant = create_assistant(topic)
-                assistant.reset_chat_history()
+                assistant.reset_chat_history()  # Reset chat history when switching topics
                 print(f"Switched to {assistant.context}. How can I help you?")
                 continue
-        
+
         try:
             response = assistant.process_chat(user_input)
             print("Assistant:", response)
