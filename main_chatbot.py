@@ -19,6 +19,7 @@ class Assistant:
         self.docs = self.load_text(file_path)
         self.vectorStore = self.create_db(self.docs)
         self.chain = self.create_chain()
+        self.chat_history = []
 
     def load_text(self, file_path):
         loader = TextLoader(file_path, encoding='utf-8')
@@ -65,12 +66,18 @@ class Assistant:
             chain
         )
 
-    def process_chat(self, question, chat_history):
+    def process_chat(self, question):
         response = self.chain.invoke({
             "input": question,
-            "chat_history": chat_history
+            "chat_history": self.chat_history,
+            "context": self.context
         })
+        self.chat_history.append(HumanMessage(content=question))
+        self.chat_history.append(AIMessage(content=response["answer"]))
         return response["answer"]
+
+    def reset_chat_history(self):
+        self.chat_history = []
 
 class MapAssistant(Assistant):
     def __init__(self):
@@ -104,8 +111,6 @@ if __name__ == '__main__':
     assistant = create_assistant(topic)
 
     print(f"Great! I'll help you with {topic}. What would you like to know?")
-
-    chat_history = []
     
     while True:
         user_input = input("You: ")
@@ -120,12 +125,9 @@ if __name__ == '__main__':
             if switch in ['yes', 'y']:
                 topic = other_topic
                 assistant = create_assistant(topic)
-                chat_history = []
-                print(f"Switched to {topic}. How can I help you?")
+                assistant.reset_chat_history()
+                print(f"Switched to {assistant.context}. How can I help you?")
                 continue
         
-        response = assistant.process_chat(user_input, chat_history)
-        chat_history.append(HumanMessage(content=user_input))
-        chat_history.append(AIMessage(content=response))
-        
+        response = assistant.process_chat(user_input)
         print("Assistant:", response)
