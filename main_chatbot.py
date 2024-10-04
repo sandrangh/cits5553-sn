@@ -14,7 +14,8 @@ load_dotenv()
 import constants
 
 class Assistant:
-    def __init__(self, file_path):
+    def __init__(self, file_path, context):
+        self.context = context
         self.docs = self.load_text(file_path)
         self.vectorStore = self.create_db(self.docs)
         self.chain = self.create_chain()
@@ -35,7 +36,7 @@ class Assistant:
         )
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "Answer the user's questions based on the context: {context}"),
+            ("system", f"Answer the user's questions based on the {self.context} context: {{context}}"),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{input}")
         ])
@@ -50,7 +51,7 @@ class Assistant:
         retriever_prompt = ChatPromptTemplate.from_messages([
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{input}"),
-            ("human", "Given the above conversation, generate a search query to look up relevant information")
+            ("human", f"Given the above conversation about {self.context}, generate a search query to look up relevant information")
         ])
 
         history_aware_retriever = create_history_aware_retriever(
@@ -73,11 +74,11 @@ class Assistant:
 
 class MapAssistant(Assistant):
     def __init__(self):
-        super().__init__('Raw data - maps.txt')
+        super().__init__('Raw data - maps.txt', 'map navigation')
 
 class DashboardAssistant(Assistant):
     def __init__(self):
-        super().__init__('Data1.txt')
+        super().__init__('Data1.txt', 'data dashboard')
 
 def create_assistant(topic):
     if topic == "map":
