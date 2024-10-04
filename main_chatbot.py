@@ -56,9 +56,7 @@ class Assistant:
                "\n10. Maintain user privacy; do not request or store personal information."),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
-    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Suggest one relevant follow-up query that you think the user may ask:"
-               "\n [Your helpful response here]"
-               "\n Would you like to know more about: [Suggested follow-up question]")
+    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest one relevant follow-up query that you think the user may ask.")
         ])
 
         chain = create_stuff_documents_chain(
@@ -92,8 +90,18 @@ class Assistant:
             "context": self.context
         })
         self.chat_history.append(HumanMessage(content=question))
-        self.chat_history.append(AIMessage(content=response["answer"]))
-        return response["answer"]
+        
+        # Split the response into main answer and follow-up question
+        main_answer, follow_up = self.split_response(response["answer"])
+        
+        self.chat_history.append(AIMessage(content=main_answer))
+        return main_answer, follow_up
+
+    def split_response(self, response):
+        parts = response.split("Would you like to know more about:")
+        main_answer = parts[0].strip()
+        follow_up = parts[1].strip() if len(parts) > 1 else ""
+        return main_answer, follow_up
 
     def reset_chat_history(self):
         self.chat_history = []
@@ -133,8 +141,10 @@ if __name__ == '__main__':
             break
 
         try:
-            response = assistant.process_chat(user_input)
-            print("Assistant:", response)
+            main_response, follow_up = assistant.process_chat(user_input)
+            print("Assistant:", main_response)
+            if follow_up:
+                print("Assistant: Would you like to know more about:", follow_up)
         except Exception as e:
             print(f"An error occurred: {e}")
             print("Let's try that again. Could you rephrase your question?")
