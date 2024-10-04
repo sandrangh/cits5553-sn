@@ -47,17 +47,15 @@ class Assistant:
                "\n   - Direct users to open the Atlas maps"
                "\n   - Instruct users to use the theme or indicator search box in Atlas maps"
                "\n   - Explain that if data is available on the topic, it will appear as a dropdown"
-               "\n   - Encourage exploration of different themes and indicators"
                "\n   - Do not interpret specific data or findings"
                "\n3. Always relate your responses back to the user's original query, regardless of the theme or indicator."),
         MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
     ("system", "Remember to be concise, clear, and helpful in your responses - give a maximum of 3 sentences. "
                "Focus exclusively on {context} and do not discuss other topics unless explicitly asked."
-               "Keep explanations simple and encourage exploration of various themes and indicators."
-               "After giving guidance, suggest one relevant follow-up question about exploring different themes or indicators.")
+               "After giving guidance, suggest two relevant follow-up questions.")
         ])
-        
+
         chain = create_stuff_documents_chain(
             llm=model,
             prompt=prompt
@@ -102,12 +100,17 @@ class MapAssistant(Assistant):
 if __name__ == '__main__':
     assistant = MapAssistant()
 
-    print(f"Hello! Welcome to the Atlas Map Navigation Assistant! Are you new to our interactive map platform? (Yes/No)")
-    
+    print("Hello! Welcome to the Atlas Map Navigation Assistant! Are you new to our interactive map platform? (Yes/No)")
+
     user_response = input("You: ").lower()
     if user_response in ['yes', 'y']:
         assistant.is_new_user = True
-        print("Great! I'm here to guide you through using our platform. Let's start with the basics. What would you like to know about our map?")
+        print("Great! Let's start by familiarising you with the map platform.")
+        print("You can start by reading the help screens. Please follow these steps:")
+        print("1. Click on Atlas maps")
+        print("2. Navigate to the right-hand side pane")
+        print("3. Click the 'i' icon in the top right-hand corner")
+        print("This will open the help screens. There are three screens covering different aspects of the platform: the National scale, Atlas menu items, and map interactions.")
     else:
         print("Welcome back! I'm here to assist you with any questions about our map platform. What can I help you with today?")
 
