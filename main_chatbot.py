@@ -71,8 +71,39 @@ class Assistant:
         })
         return response["answer"]
 
+class MapAssistant(Assistant):
+    def __init__(self):
+        super().__init__('Raw data - maps.txt')
+
+class DashboardAssistant(Assistant):
+    def __init__(self):
+        super().__init__('Data1.txt')
+
+def create_assistant(topic):
+    if topic == "map":
+        return MapAssistant()
+    elif topic == "dashboard":
+        return DashboardAssistant()
+    else:
+        raise ValueError("Invalid topic")
+
+def select_topic():
+    while True:
+        print("What would you like help with today? Map navigation or Data dashboard?")
+        user_choice = input("You: ").lower()
+        if "map" in user_choice:
+            return "map"
+        elif "dashboard" in user_choice:
+            return "dashboard"
+        else:
+            print("I'm sorry, I didn't understand your choice. Please type 'map' or 'dashboard'.")
+
 if __name__ == '__main__':
-    assistant = Assistant('Raw data - maps.txt')
+    topic = select_topic()
+    assistant = create_assistant(topic)
+
+    print(f"Great! I'll help you with {topic}. What would you like to know?")
+
     chat_history = []
     
     while True:
@@ -80,6 +111,17 @@ if __name__ == '__main__':
         if user_input.lower() == 'exit':
             print("Ending conversation. Goodbye!")
             break
+
+        other_topic = "dashboard" if topic == "map" else "map"
+        if other_topic in user_input.lower():
+            print(f"It seems you're asking about {other_topic}. Would you like to switch topics? (yes/no)")
+            switch = input("You: ").lower()
+            if switch in ['yes', 'y']:
+                topic = other_topic
+                assistant = create_assistant(topic)
+                chat_history = []
+                print(f"Switched to {topic}. How can I help you?")
+                continue
         
         response = assistant.process_chat(user_input, chat_history)
         chat_history.append(HumanMessage(content=user_input))
