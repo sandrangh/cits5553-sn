@@ -11,80 +11,68 @@ from langchain.chains.history_aware_retriever import create_history_aware_retrie
 
 load_dotenv()
 
-# Import constants for API key
 import constants
 
-# Function to load text file
-def load_text(file_path):
-    loader = TextLoader(file_path, encoding='utf-8')
-    return loader.load()
+class Assistant:
+    def __init__(self, file_path):
+        self.docs = self.load_text(file_path)
+        self.vectorStore = self.create_db(self.docs)
+        self.chain = self.create_chain()
 
-# Function to create vector store
-def create_db(docs):
-    embedding = OpenAIEmbeddings(openai_api_key=constants.APIKEY)
-    return Chroma.from_documents(docs, embedding=embedding)
+    def load_text(self, file_path):
+        loader = TextLoader(file_path, encoding='utf-8')
+        return loader.load()
 
-# Function to create the chain
-def create_chain(vectorStore):
-    model = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0.4,
-        api_key=constants.APIKEY
-    )
+    def create_db(self, docs):
+        embedding = OpenAIEmbeddings(openai_api_key=constants.APIKEY)
+        return Chroma.from_documents(docs, embedding=embedding)
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Answer the user's questions based on the context: {context}. Start the conversation with: If given incomplete questions i.e., one-word input, please ask follow up questions."),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}")
-    ])
+    def create_chain(self):
+        model = ChatOpenAI(
+            model="gpt-4o-mini",
+            temperature=0.4,
+            api_key=constants.APIKEY
+        )
 
-    chain = create_stuff_documents_chain(
-        llm=model,
-        prompt=prompt
-    )
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "Answer the user's questions based on the context: {context}"),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}")
+        ])
 
-    retriever = vectorStore.as_retriever(search_kwargs={"k": 1})
+        chain = create_stuff_documents_chain(
+            llm=model,
+            prompt=prompt
+        )
 
-    retriever_prompt = ChatPromptTemplate.from_messages([
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
-        ("human", "Given the above conversation, generate a search query to look up in order to get information relevant to the conversation")
-    ])
+        retriever = self.vectorStore.as_retriever(search_kwargs={"k": 1})
 
-    history_aware_retriever = create_history_aware_retriever(
-        llm=model,
-        retriever=retriever,
-        prompt=retriever_prompt
-    )
+        retriever_prompt = ChatPromptTemplate.from_messages([
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}"),
+            ("human", "Given the above conversation, generate a search query to look up relevant information")
+        ])
 
-    retrieval_chain = create_retrieval_chain(
-        history_aware_retriever,
-        chain
-    )
+        history_aware_retriever = create_history_aware_retriever(
+            llm=model,
+            retriever=retriever,
+            prompt=retriever_prompt
+        )
 
-    return retrieval_chain
+        return create_retrieval_chain(
+            history_aware_retriever,
+            chain
+        )
 
-# Function to process chat
-def process_chat(chain, question, chat_history):
-    response = chain.invoke({
-        "input": question,
-        "chat_history": chat_history
-    })
-    return response["answer"]
+    def process_chat(self, question, chat_history):
+        response = self.chain.invoke({
+            "input": question,
+            "chat_history": chat_history
+        })
+        return response["answer"]
 
-if __name__ == '__main__':    
-    # Load documents from text file
-    text_docs = load_text('Raw data - maps.txt')
-    
-    # Combine documents
-    all_docs = text_docs
-    
-    # Create vector store
-    vectorStore = create_db(all_docs)
-    
-    # Create chain
-    chain = create_chain(vectorStore)
-    
+if __name__ == '__main__':
+    assistant = Assistant('Raw data - maps.txt')
     chat_history = []
     
     while True:
@@ -93,7 +81,7 @@ if __name__ == '__main__':
             print("Ending conversation. Goodbye!")
             break
         
-        response = process_chat(chain, user_input, chat_history)
+        response = assistant.process_chat(user_input, chat_history)
         chat_history.append(HumanMessage(content=user_input))
         chat_history.append(AIMessage(content=response))
         
