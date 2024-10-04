@@ -31,13 +31,13 @@ class Assistant:
 
     def create_chain(self):
         model = ChatOpenAI(
-            model="gpt-4o-mini",
+            model="gpt-4o-mini",  # Make sure this is the correct model name
             temperature=0.4,
             api_key=constants.APIKEY
         )
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", f"Answer the user's questions based on the {self.context} context: {{context}}. Start the conversation with: If given incomplete questions i.e., one-word input, please ask follow up questions. Also, ask follow up questions if the question is very general."),
+            ("system", f"Answer the user's questions based on the {self.context} context: {{context}}. Start the conversation with: If given incomplete questions i.e., one-word input, please ask follow up questions. If the user asks a general about finding specific data, please tell the user to search the data topic of interest in the search bar. Only if the user asks for the specific path to the indicator, do you give with specific steps to navigate. Also, after providing an answer, suggest 2 specific follow-up questions directly related to the context of the user's question and provided the questions that you think the user may ask next. If answer responds No to the follow-up questions, continue with conversation."),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{input}")
         ])
@@ -46,7 +46,6 @@ class Assistant:
             llm=model,
             prompt=prompt
         )
-
         retriever = self.vectorStore.as_retriever(search_kwargs={"k": 1})
 
         retriever_prompt = ChatPromptTemplate.from_messages([
