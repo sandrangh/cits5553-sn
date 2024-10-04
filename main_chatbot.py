@@ -21,6 +21,7 @@ class Assistant:
         self.chain = self.create_chain()
         self.chat_history = []
         self.is_new_user = False
+        self.question_count = 0
 
     def load_text(self, file_path):
         loader = TextLoader(file_path, encoding='utf-8')
@@ -49,7 +50,7 @@ class Assistant:
                "\n3. Relate all responses back to the user's original query about map navigation."
                "\n4. Do not interpret data or discuss statistics. Clarify that your role is strictly for navigation assistance."
                "\n5. Strictly address Atlas map navigation queries. For unrelated questions, respond exactly with: 'I apologise, but I'm specifically designed to help with the Australian Child and Youth Wellbeing Atlas platform. Could you please ask a question about using the Atlas map?'"
-               "\n6. For complex queries or if they contain 'specific navigation paths', 'specific instructions', or 'detailed steps', refer them to the user guide for detailed instructions. Say: 'For detailed step-by-step instructions on this complex navigation, please refer to the Atlas platform user guide (https://australianchildatlas.com/s/Atlas-platform-user-guide.pdf).'"
+               "\n6. For any complex queries that contain 'specific navigation paths', 'specific instructions', or 'detailed steps', refer the user to the user guide and respond exactly with: ‘For detailed step-by-step instructions on this complex navigation, please refer to the Atlas platform user guide (https://australianchildatlas.com/s/Atlas-platform-user-guide.pdf)'."
                "\n7. Refuse to engage with inappropriate, profanity or off-topic content."
                "\n8. Do not assist in system misuse or unauthorised access."
                "\n9. Respect intellectual property rights; do not reproduce copyrighted content."
@@ -95,6 +96,7 @@ class Assistant:
         main_answer, follow_up = self.split_response(response["answer"])
         
         self.chat_history.append(AIMessage(content=main_answer))
+        self.question_count += 1
         return main_answer, follow_up
 
     def split_response(self, response):
@@ -105,6 +107,7 @@ class Assistant:
 
     def reset_chat_history(self):
         self.chat_history = []
+        self.question_count = 0
 
 class MapAssistant(Assistant):
     def __init__(self):
@@ -115,7 +118,13 @@ if __name__ == '__main__':
 
     print("Hello! Welcome to the Atlas Map Navigation Assistant! Are you new to our interactive map platform? (Yes/No)")
 
-    user_response = input("You: ").lower()
+    while True:
+        user_response = input("You: ").lower()
+        if user_response in ['yes', 'y', 'no', 'n']:
+            break
+        else:
+            print("Please answer with 'Yes' or 'No'.")
+
     if user_response in ['yes', 'y']:
         assistant.is_new_user = True
         print("Great! Let's start by familiarising you with the map platform.")
@@ -125,19 +134,26 @@ if __name__ == '__main__':
         print("3. Click the 'i' icon in the top right-hand corner")
         print("This will open the help screens. There are three screens covering different aspects of the platform: the National scale, Atlas menu items, and map interactions.")
         
-        print("Are you ready to continue? (Yes/No)")
-        continue_response = input("You: ").lower()
+        print("Would you like to continue? (Yes/No)")
+        while True:
+            continue_response = input("You: ").lower()
+            if continue_response in ['yes', 'y']:
+                break
+            elif continue_response in ['no', 'n']:
+                print("Thank you for using the Atlas Map Navigation Assistant! Feel free to come back anytime you have questions. Goodbye!")
+                exit()
+            else:
+                print("Please answer with 'Yes' or 'No'.")
+        
         if continue_response in ['yes', 'y']:
-            print("Great! What specific question can I assist you with first?")
-        else:
-            print("Alright. Feel free to ask any questions when you're ready to explore further.")
+            print("Great! What specific question can I assist you with first? You can type 'exit' at any time to end the conversation.")
     else:
-        print("Welcome back! I'm here to assist you with any questions about our map platform. What can I help you with today?")
+        print("Welcome back! What can I help you with today? You can type 'exit' at any time to end the conversation.")
 
     while True:
         user_input = input("You: ")
         if user_input.lower() == 'exit':
-            print("Ending conversation. Goodbye!")
+            print("Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
             break
 
         try:
@@ -145,6 +161,15 @@ if __name__ == '__main__':
             print("Assistant:", main_response)
             if follow_up:
                 print("Assistant: Would you like to know more about:", follow_up)
+            
+            if assistant.question_count % 5 == 0:
+                print("Assistant: Do you still need any more assistance or have any other questions? (Yes/No)")
+                continue_chat = input("You: ").lower()
+                if continue_chat in ['no', 'n']:
+                    print("Assistant: Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
+                    break
+                elif continue_chat not in ['yes', 'y']:
+                    print("Assistant: Sure thing! What other questions do you have about the Atlas map?")
         except Exception as e:
             print(f"An error occurred: {e}")
             print("Let's try that again. Could you rephrase your question?")
