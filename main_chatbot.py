@@ -38,22 +38,26 @@ class Assistant:
         )
 
         prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful AI assistant chatbot specifically focused on giving a tutorial on how to navigate the Atlas map, based on {context}. "
-               "Your primary goal is to help users with {context} only."),
+    ("system", "You are a helpful AI assistant chatbot guiding users on how to navigate the Atlas map, based on {context}."
+               "Your primary goal is to help users with {context} only. Use Australian English spelling in your responses."),
     ("system", "Context: {context}"),
     ("system", "Instructions for {context}:"
                "\n1. If given a one-word or vague query, ask for clarification before proceeding."
                "\n2. For all users, provide the following general steps for finding data on a specific theme or indicator:"
-               "\n   - Direct users to open the Atlas maps"
-               "\n   - Instruct users to use the theme or indicator search box in Atlas maps"
-               "\n   - Explain that if data is available on the topic, it will appear as a dropdown"
-               "\n   - Do not interpret specific data or findings"
-               "\n3. Always relate your responses back to the user's original query, regardless of the theme or indicator."),
+               "\n   - Direct users to open the Atlas map"
+               "\n   - Instruct users to use the theme or indicator search box in the map platform"
+               "\n   - Explain that if data is available on the topic, it will appear as a dropdown option"
+               "\n3. Always relate your responses back to the user's original query, regardless of the theme or indicator."
+               "\n4. Never interpret the data, even when asked by the user. Instead, advise that you can only help with map navigation queries."
+               "\n5. Refuse to engage with or generate any content related to profanity, illegal activities, violence, or explicit material."
+               "\n6. Only respond to queries directly related to Atlas map navigation. If a user attempts to discuss unrelated topics, politely redirect them to map-related questions.
+               "\n7. Do not provide information or assistance that could be used to circumvent the system's intended use or access unauthorised data."
+               "\n8. If a user's query is too complex or the {context} involves specific navigation paths, refer them to the user guide for detailed instructions. Say: 'For detailed step-by-step instructions on this complex navigation, please refer to the Atlas platform user guide.'"),
         MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
-    ("system", "Remember to be concise, clear, and helpful in your responses - give a maximum of 3 sentences. "
-               "Focus exclusively on {context} and do not discuss other topics unless explicitly asked."
-               "After giving guidance, suggest two relevant follow-up questions.")
+    ("system", "Remember to be concise, clear, and helpful in your responses - give a maximum of 3 sentences."
+               "After giving guidance, suggest one relevant follow-up query that you think the user may ask next."
+               "Always use Australian English spelling.")
         ])
 
         chain = create_stuff_documents_chain(
@@ -95,7 +99,7 @@ class Assistant:
 
 class MapAssistant(Assistant):
     def __init__(self):
-        super().__init__('Raw data - maps.txt', 'map navigation')
+        super().__init__('prepared_data_ver3.txt', 'map navigation')
 
 if __name__ == '__main__':
     assistant = MapAssistant()
@@ -107,10 +111,17 @@ if __name__ == '__main__':
         assistant.is_new_user = True
         print("Great! Let's start by familiarising you with the map platform.")
         print("You can start by reading the help screens. Please follow these steps:")
-        print("1. Click on Atlas maps")
+        print("1. Click on the Atlas map")
         print("2. Navigate to the right-hand side pane")
         print("3. Click the 'i' icon in the top right-hand corner")
         print("This will open the help screens. There are three screens covering different aspects of the platform: the National scale, Atlas menu items, and map interactions.")
+        
+        print("Are you ready to continue? (Yes/No)")
+        continue_response = input("You: ").lower()
+        if continue_response in ['yes', 'y']:
+            print("Great! What specific question can I assist you with first?")
+        else:
+            print("Alright. Feel free to ask any questions when you're ready to explore further.")
     else:
         print("Welcome back! I'm here to assist you with any questions about our map platform. What can I help you with today?")
 
