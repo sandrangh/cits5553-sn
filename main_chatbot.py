@@ -42,20 +42,17 @@ class Assistant:
     ("system", "Context: {context}"),
     ("system", "Instructions for {context}:"
                "\n1. If given a one-word or vague query, ask for clarification before proceeding."
-               "\n2. Once the query is clear, guide the user as follows:"
-               "\n   a. If the context is map navigation:"
+               "\n2. Once the query is clear, these should be the first instructions to guide the user as follows:"
+               "\n   a. If the context is to find data on a specific theme or indicator:"
                "\n      - Direct users to the Atlas maps"
                "\n      - Instruct users to use the theme search box in Atlas maps"
                "\n      - Explain that available data will appear as a dropdown"
-               "\n   b. If the context is data dashboard:"
-               "\n      - Guide users to the data dashboard"
-               "\n      - Instruct users to select a region first"
-               "\n3. Only provide more specific guidance from MapAssistant or DashboardAssistant if the user requests additional help after the initial instructions."
+               "\n3. Only provide more specific guidance if the user requests additional help after the initial instructions."
                "\n4. Always relate your responses back to the user's original query."),
         MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
     ("system", "Remember to be concise, clear, and helpful in your responses - give a maximum of 3 sentences. "
-               "Focus exclusively on {context} and do not discuss the other topic unless explicitly asked."
+               "Focus exclusively on {context} and do not discuss other topics unless explicitly asked."
                "Always start with general guidance before providing specific details.")
         ])
 
@@ -100,52 +97,16 @@ class MapAssistant(Assistant):
     def __init__(self):
         super().__init__('Raw data - maps.txt', 'map navigation')
 
-class DashboardAssistant(Assistant):
-    def __init__(self):
-        super().__init__('Data1.txt', 'data dashboard')
-
-def create_assistant(topic):
-    if topic == "map":
-        return MapAssistant()
-    elif topic == "dashboard":
-        return DashboardAssistant()
-    else:
-        raise ValueError("Invalid topic")
-
-def select_topic():
-    while True:
-        print("Hello! What would you like help with today? Map navigation or Data dashboard?")
-        user_choice = input("You: ").lower()
-        if "map" in user_choice:
-            return "map"
-        elif "dashboard" in user_choice:
-            return "dashboard"
-        else:
-            print("I'm sorry, I didn't understand your choice. Please type 'map' or 'dashboard'.")
-
 if __name__ == '__main__':
-    topic = select_topic()
-    assistant = create_assistant(topic)
+    assistant = MapAssistant()
 
-    print(f"Great! I'll help you with {assistant.context}. What would you like to know?")
+    print(f"Hello! Welcome to the Atlas Map Navigation Assistant! I'm here to guide you through using our interactive map platform. What would you like to know?")
 
     while True:
         user_input = input("You: ")
         if user_input.lower() == 'exit':
             print("Ending conversation. Goodbye!")
             break
-
-        # Topic switch logic
-        other_topic = "dashboard" if topic == "map" else "map"
-        if other_topic in user_input.lower():
-            print(f"It seems you're asking about {other_topic}. Would you like to switch topics? (yes/no)")
-            switch = input("You: ").lower()
-            if switch in ['yes', 'y']:
-                topic = other_topic
-                assistant = create_assistant(topic)
-                assistant.reset_chat_history()  # Reset chat history when switching topics
-                print(f"Switched to {assistant.context}. How can I help you?")
-                continue
 
         try:
             response = assistant.process_chat(user_input)
