@@ -23,13 +23,13 @@ current_date = datetime.now().strftime("%Y-%m-%d")
 log_filename_csv = f"chat_logs_{current_date}.csv"
 log_filename_txt = f"chat_logs_{current_date}.txt"
 
-# Set up logs for the CSV file
+# Set up logs for CSV file
 if not os.path.exists(log_filename_csv):
     with open(log_filename_csv, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(['Question', 'Response'])
 
-# Set up logs for the TXT file
+# Set up logs for TXT file
 logging.basicConfig(filename=log_filename_txt, level=logging.INFO, format='%(asctime)s - %(message)s')
 
 class Assistant:
@@ -60,27 +60,27 @@ class Assistant:
             api_key=constants.APIKEY
         )
 
-        # Define the conversation prompt
+        # Define conversation prompt
         prompt = ChatPromptTemplate.from_messages([
     ("system", "You are an AI assistant designed to help users navigate the Atlas map. Your responses must be safe, ethical, and compliant with copyright laws. You cannot generate or engage with harmful content."),
     ("system", "Context: {context}"),
     ("system", "Instructions for {context}:"
-               "\n1. Always clarify vague or one-word queries before providing a full response."
+               "\n1. Always clarify vague, ambiguous, or one-word queries before providing a full response. If the user's input is unclear, misspelled, or potentially mistyped, ask for clarification. For example, if the user types 'exiy', respond with: 'I'm not sure what you mean by 'exiy'. Did you mean to type 'exit'? Could you please clarify or rephrase your question?"
                "\n2. For data search queries, consistently follow this format:"
                "\n   a. Open the Atlas map"
                "\n   b. Use the theme/indicator search box"
                "\n   c. Select from available dropdown options"
                "\n3. Relate all responses back to the user's original query about map navigation."
-               "\n4. Do not interpret data or discuss statistics. Clarify that your role is strictly for navigation assistance."
+               "\n4. Do not interpret data, explain statistics, or offer analysis. Clarify that your role is strictly for navigation assistance."
                "\n5. Strictly address Atlas map navigation queries. For unrelated questions, respond exactly with: 'I apologise, but I'm specifically designed to help with the Australian Child and Youth Wellbeing Atlas platform. Could you please ask a question about using the Atlas map?'"
-               "\n6. For any complex queries that contain 'specific navigation paths', 'specific instructions', or 'detailed steps', refer the user to the user guide and respond exactly with: 'For detailed step-by-step instructions on this complex navigation, please refer to the Atlas platform user guide (https://australianchildatlas.com/s/Atlas-platform-user-guide.pdf)'."
+               "\n6. For any complex queries that contain 'specific navigation paths', 'specific instructions', or 'detailed steps', refer the user to the user guide and respond exactly with: 'For detailed step-by-step instructions on this complex navigation, please refer to the Atlas platform user guide (https://australianchildatlas.com/s/Atlas-platform-user-guide.pdf)'"
                "\n7. Refuse to engage with inappropriate, profanity or off-topic content."
                "\n8. Do not assist in system misuse or unauthorised access."
                "\n9. Respect intellectual property rights; do not reproduce copyrighted content."
                "\n10. Maintain user privacy; do not request or store personal information."),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
-    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest one relevant follow-up query that you think the user may ask, starting with 'Would you like to know more about:'.")
+    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest one relevant follow-up query that you think the user may ask, starting with 'Would you like to know more about:'")
         ])
 
         chain = create_stuff_documents_chain(
@@ -120,21 +120,21 @@ class Assistant:
         
         self.chat_history.append(HumanMessage(content=question))
         
-        # Split the response into main answer and follow-up question
+        # Split response into main answer and follow-up question
         main_answer, follow_up = self.split_response(response["answer"])
         
         self.chat_history.append(AIMessage(content=main_answer))
         self.question_count += 1
         return main_answer, follow_up
 
+    # Log to CSV file
     def log_to_csv(self, question, answer):
-        # Log to CSV file
         with open(log_filename_csv, mode='a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow([question, answer])  # Write question and response
+            writer.writerow([question, answer])
 
+    # Log chat entry to TXT file
     def log_chat_history(self, question, answer):
-        # Log the chat entry to TXT file
         logging.info(f"User: {question}")
         logging.info(f"Assistant: {answer}")
 
@@ -180,6 +180,7 @@ if __name__ == '__main__':
         print("This will open the help screens. There are three screens covering different aspects of the platform: the National scale, Atlas menu items, and map interactions.")
         
         print("Would you like to continue? (Yes/No)")
+        
         while True:
             continue_response = input("You: ").lower()
             if continue_response in ['yes', 'y']:
@@ -209,15 +210,20 @@ if __name__ == '__main__':
             if follow_up:
                 print("Assistant:", follow_up)
             
-            # Check if it's time to ask if the user needs more assistance
+            # Check if it's time to ask if user needs more assistance
             if assistant.question_count % 5 == 0:
                 print("Assistant: Do you still need any more assistance or have any other questions? (Yes/No)")
-                continue_chat = input("You: ").lower()
-                if continue_chat in ['no', 'n']:
-                    print("Assistant: Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
-                    break
-                elif continue_chat not in ['yes', 'y']:
-                    print("Assistant: Sure thing! What other questions do you have about the Atlas map?")
+                
+                while True:
+                    continue_chat = input("You: ").lower()
+                    if continue_chat in ['yes', 'y']:
+                        print("Assistant: Great! What other questions do you have about the Atlas map?")
+                        break
+                    elif continue_chat in ['no', 'n']:
+                        print("Assistant: Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
+                        exit()
+                    else:
+                        print("Please answer with 'Yes' or 'No'.")
         except Exception as e:
             print(f"An error occurred: {e}")
             print("Let's try that again. Could you rephrase your question?")
