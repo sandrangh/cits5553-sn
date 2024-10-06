@@ -1,8 +1,8 @@
 # Import necessary libraries
 import os
-import time
-import uuid
 import csv
+import logging
+from datetime import datetime
 from dotenv import load_dotenv
 from langchain_community.document_loaders import TextLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -18,20 +18,19 @@ load_dotenv()
 
 import constants
 
-# Function to generate a unique filename for CSV logging
-def generate_log_filename():
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    session_id = str(uuid.uuid4())
-    return f"chat_logs_{timestamp}_{session_id}.csv"
+# Create date-specific log filenames
+current_date = datetime.now().strftime("%Y-%m-%d")
+log_filename_csv = f"chat_logs_{current_date}.csv"
+log_filename_txt = f"chat_logs_{current_date}.txt"
 
-# Generate unique log filename for session
-log_filename = generate_log_filename()
+# Set up logs for the CSV file
+if not os.path.exists(log_filename_csv):
+    with open(log_filename_csv, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Question', 'Response'])
 
-# Create and open the CSV file for writing
-with open(log_filename, mode='w', newline='', encoding='utf-8') as file:
-    writer = csv.writer(file)
-    # Write header row in CSV
-    writer.writerow(['Question', 'Response'])
+# Set up logs for the TXT file
+logging.basicConfig(filename=log_filename_txt, level=logging.INFO, format='%(asctime)s - %(message)s')
 
 class Assistant:
     def __init__(self, file_path, context):
@@ -115,6 +114,10 @@ class Assistant:
             "chat_history": self.chat_history,
             "context": self.context
         })
+        
+        self.log_to_csv(question, response["answer"])
+        self.log_chat_history(question, response["answer"])
+        
         self.chat_history.append(HumanMessage(content=question))
         
         # Split the response into main answer and follow-up question
@@ -123,6 +126,17 @@ class Assistant:
         self.chat_history.append(AIMessage(content=main_answer))
         self.question_count += 1
         return main_answer, follow_up
+
+    def log_to_csv(self, question, answer):
+        # Log to CSV file
+        with open(log_filename_csv, mode='a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow([question, answer])  # Write question and response
+
+    def log_chat_history(self, question, answer):
+        # Log the chat entry to TXT file
+        logging.info(f"User: {question}")
+        logging.info(f"Assistant: {answer}")
 
     # Split response into main answer and follow-up question
     def split_response(self, response):
@@ -182,34 +196,28 @@ if __name__ == '__main__':
         print("Welcome back! What can I help you with today? You can type 'exit' at any time to end the conversation.")
 
     # Main conversation loop
-    with open(log_filename, mode='a', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        
-        while True:
-            user_input = input("You: ")
-            if user_input.lower() == 'exit':
-                print("Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
-                break
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == 'exit':
+            print("Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
+            break
 
-            try:
-                main_response, follow_up = assistant.process_chat(user_input)
-                print("Assistant:", main_response)
-                
-                # Log the question and response in the CSV file
-                writer.writerow([user_input, main_response])
-                
-                if follow_up:
-                    print("Assistant:", follow_up)
-                
-                # Check if it's time to ask if the user needs more assistance
-                if assistant.question_count % 5 == 0:
-                    print("Assistant: Do you still need any more assistance or have any other questions? (Yes/No)")
-                    continue_chat = input("You: ").lower()
-                    if continue_chat in ['no', 'n']:
-                        print("Assistant: Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
-                        break
-                    elif continue_chat not in ['yes', 'y']:
-                        print("Assistant: Sure thing! What other questions do you have about the Atlas map?")
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                print("Let's try that again. Could you rephrase your question?")
+        try:
+            main_response, follow_up = assistant.process_chat(user_input)
+            print("Assistant:", main_response)
+            
+            if follow_up:
+                print("Assistant:", follow_up)
+            
+            # Check if it's time to ask if the user needs more assistance
+            if assistant.question_count % 5 == 0:
+                print("Assistant: Do you still need any more assistance or have any other questions? (Yes/No)")
+                continue_chat = input("You: ").lower()
+                if continue_chat in ['no', 'n']:
+                    print("Assistant: Thank you for using the Atlas Map Navigation Assistant. Goodbye!")
+                    break
+                elif continue_chat not in ['yes', 'y']:
+                    print("Assistant: Sure thing! What other questions do you have about the Atlas map?")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            print("Let's try that again. Could you rephrase your question?")
