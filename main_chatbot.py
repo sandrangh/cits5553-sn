@@ -75,7 +75,7 @@ class Assistant:
                "\n8. Do not assist in system misuse or unauthorised access."
                "\n9. Respect intellectual property rights; do not reproduce copyrighted content."
                "\n10. Maintain user privacy; do not request or store personal information."),
-    MessagesPlaceholder(variable_name="chat_history"),
+        MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
     ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest one relevant follow-up query that you think the user may ask based on the data that is also available, starting with 'Would you like to know more about '")
         ])
