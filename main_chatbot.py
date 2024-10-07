@@ -41,6 +41,7 @@ class Assistant:
         self.chat_history = []
         self.is_new_user = False
         self.question_count = 0
+        self.last_follow_up = ""
 
     # Load text from file
     def load_text(self, file_path):
@@ -56,7 +57,7 @@ class Assistant:
     def create_chain(self):
         model = ChatOpenAI(
             model="gpt-4o-mini",
-            temperature=0.2,
+            temperature=0.1,
             api_key=constants.APIKEY
         )
 
@@ -65,7 +66,7 @@ class Assistant:
     ("system", "You are an AI assistant designed to help users navigate the Atlas map. Your responses must be safe, ethical, and compliant with copyright laws. You cannot generate or engage with harmful content."),
     ("system", "Context: {context}"),
     ("system", "Instructions for {context}:"
-               "\n1. Always clarify vague, ambiguous, or one-word queries before providing a full response. If the user's input is unclear, misspelled, or potentially mistyped, ask for clarification. For example, if the user types 'exiy', respond with: 'I'm not sure what you mean by 'exiy'. Did you mean to type 'exit'? Could you please clarify or rephrase your question?"
+               "\n1. ALWAYS clarify vague, ambiguous, or one-word queries before providing a full response. If the user's input is unclear, misspelled, or potentially mistyped, ask for clarification. For example, if the user types 'exiy', respond with: 'I'm not sure what you mean by 'exiy'. Did you mean to type 'exit'? Could you please clarify or rephrase your question?"
                "\n2. For data search queries on a specific theme or subcategory, respond EXACTLY with: 'To find data on [theme], open the Atlas map, then navigate to the right-hand side pane and type the theme in the search box. If data is available, select the subcategory of interest from the drop-down options.' This is an example for 'assault': 'To find data on assault, open the Atlas map, then navigate to the right-hand side pane and type the theme in the search box. If data is available, select the subcategory of interest from the drop-down options.'"
                "\n3. Relate all responses back to the user's original query about map navigation."
                "\n4. Do not interpret data, explain statistics, or offer analysis. Clarify that your role is strictly for navigation assistance."
@@ -77,7 +78,7 @@ class Assistant:
                "\n10. Maintain user privacy; do not request or store personal information."),
         MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
-    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest one relevant follow-up query that you think the user may ask based on the data that is also available, starting with 'Would you like to know more about '")
+    ("system", "Provide concise, clear responses in 1-3 sentences using Australian English spelling. Then, suggest a simple and relevant follow-up query that you think the user may ask based on the data that is also available, starting with 'Would you like to know more about '")
         ])
 
         chain = create_stuff_documents_chain(
@@ -106,11 +107,26 @@ class Assistant:
 
     # Process user input and generate response
     def process_chat(self, question):
-        response = self.chain.invoke({
-            "input": question,
-            "chat_history": self.chat_history,
-            "context": self.context
-        })
+        # Check if the user's response is a simple "yes" or "no" to a follow-up question
+        if question.lower() in ['yes', 'y', 'no', 'n'] and self.last_follow_up:
+            if question.lower() in ['no', 'n']:
+                response = self.chain.invoke({
+                    "input": "The user is not interested in the previous follow-up question. Please acknowledge this and ask if there's anything else they would like to know about the Atlas map.",
+                    "chat_history": self.chat_history,
+                    "context": self.context
+                })
+            else:
+                response = self.chain.invoke({
+                    "input": f"The user responded '{question}' to the previous question: '{self.last_follow_up}'. How should we proceed?",
+                    "chat_history": self.chat_history,
+                    "context": self.context
+                })
+        else:
+            response = self.chain.invoke({
+                "input": question,
+                "chat_history": self.chat_history,
+                "context": self.context
+            })
         
         self.log_to_csv(question, response["answer"])
         self.log_chat_history(question, response["answer"])
@@ -122,6 +138,7 @@ class Assistant:
         
         self.chat_history.append(AIMessage(content=main_answer))
         self.question_count += 1
+        self.last_follow_up = follow_up
         return main_answer, follow_up
 
     # Log to CSV file
@@ -146,6 +163,7 @@ class Assistant:
     def reset_chat_history(self):
         self.chat_history = []
         self.question_count = 0
+        self.last_follow_up = ""
 
 # Specific assistant for map navigation
 class MapAssistant(Assistant):
