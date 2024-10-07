@@ -4,7 +4,7 @@ import csv
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from langchain_community.document_loaders import TextLoader
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -18,7 +18,8 @@ from langchain.chains.history_aware_retriever import create_history_aware_retrie
 # Load environment variables
 load_dotenv()
 
-import constants
+# Load API key from environment variable
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Create date-specific log filenames
 current_date = datetime.now().strftime("%Y-%m-%d")
@@ -36,6 +37,7 @@ logging.basicConfig(filename=log_filename_txt, level=logging.INFO, format='%(asc
 
 # Initialise Flask app
 app = Flask(__name__)
+app.secret_key = 'secret_key'  
 CORS(app)
 
 class Assistant:
@@ -55,7 +57,7 @@ class Assistant:
 
     # Create vector database
     def create_db(self, docs):
-        embedding = OpenAIEmbeddings(openai_api_key=constants.APIKEY)
+        embedding = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
         return Chroma.from_documents(docs, embedding=embedding)
 
     # Create conversation chain
@@ -63,7 +65,7 @@ class Assistant:
         model = ChatOpenAI(
             model="gpt-4o-mini",
             temperature=0.2,
-            api_key=constants.APIKEY
+            api_key=OPENAI_API_KEY
         )
 
         # Define conversation prompt
@@ -143,9 +145,9 @@ class Assistant:
 
     # Split response into main answer and follow-up question
     def split_response(self, response):
-        parts = response.split("Would you like to know more about ")
+        parts = response.split("Would you like to know more about:")
         main_answer = parts[0].strip()
-        follow_up = "Would you like to know more about " + parts[1].strip() if len(parts) > 1 else ""
+        follow_up = "Would you like to know more about:" + parts[1].strip() if len(parts) > 1 else ""
         return main_answer, follow_up
 
     # Reset chat history
@@ -164,7 +166,10 @@ def chat():
     data = request.get_json()
     user_message = data.get("message", "")
     
-    assistant = MapAssistant()
+    if 'assistant' not in session:
+        session['assistant'] = MapAssistant()
+    
+    assistant = session['assistant']
     
     # Check if this is a new user
     if assistant.question_count == 0:
@@ -205,6 +210,7 @@ def chat():
     
     # Handle exit command
     if user_message.lower() == 'exit':
+        session.pop('assistant', None)
         return jsonify({
             "reply": "Thank you for using the Atlas Map Navigation Assistant. Goodbye!",
             "follow_up": ""
@@ -217,6 +223,10 @@ def chat():
         # Check if it's time to ask if user needs more assistance
         if assistant.question_count % 5 == 0:
             main_response += "\n\nDo you still need any more assistance or have any other questions? (Yes/No)"
+        
+        # Update the session
+        session['assistant'] = assistant
+        session.modified = True
         
         return jsonify({
             "reply": main_response,
