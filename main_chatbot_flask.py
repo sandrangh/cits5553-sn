@@ -27,7 +27,7 @@ log_filename_txt = f"chat_logs_{current_date}.txt"
 if not os.path.exists(log_filename_csv):
     with open(log_filename_csv, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow(['Question', 'Response'])
+        writer.writerow(['Question', 'Response', 'Response Time'])
 
 # Set up logs for TXT file
 logging.basicConfig(filename=log_filename_txt, level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -75,17 +75,20 @@ class Assistant:
              "Instructions for {context}:"
              "\n1. Engage with users in a friendly manner, responding positively to greetings."
              "\n   For example, if the user says 'Hello,' respond warmly and ask how you can help."
-             "\n2. Clarify vague, ambiguous, or one-word queries before providing a full response. If the user's input is unclear, misspelled, or potentially mistyped, ask for clarification."
-             "\n3. For data search queries on a specific theme or subcategory, respond exactly with: 'To find data on [theme], open the Atlas map, navigate to the right-hand side pane, and type [theme] in the search box. If data is available, select the subcategory of interest from the drop-down options.'"
+             "\n2. If the user responds with phrases such as ‘ok,’ ‘thank you,’ ‘I understand,’ or ‘what?’, make sure to keep the conversation flowing smoothly. After acknowledging their response, kindly ask if they have any other questions or need further assistance."
+             "\n   For positive responses like ‘ok’ or ‘thank you,’ gently ask if there’s anything else they need help with or if they have more questions."
+             "\n   If the user says ‘what?’ or seems confused, acknowledge their uncertainty and offer to clarify or provide more information. This way, you maintain a friendly and engaging conversation while helping them with their needs."
+             "\n3. Clarify vague, ambiguous, or one-word queries before providing a full response. If the user's input is unclear, misspelled, or potentially mistyped, ask for clarification."
+             "\n4. For data search queries on a specific theme or subcategory, respond exactly with: 'To find data on [theme], open the Atlas map, navigate to the right-hand side pane, and type [theme] in the search box. If data is available, select the subcategory of interest from the drop-down options.'"
              "\n   For example, if the user asks about 'assault,' respond exactly with: 'To find data on assault, open the Atlas map, navigate to the right-hand side pane, and type 'assault' in the search box. If data is available, select the subcategory of interest from the drop-down options.'"
              "\n   For example, if the user asks about 'suicide,' respond exactly with: 'To find data on suicide, open the Atlas map, navigate to the right-hand side pane, and type 'suicide' in the search box. If data is available, select the subcategory of interest from the drop-down options.'"
              "\n   For example, if the user asks about 'alcohol-related hospital admissions,' respond exactly with: 'To find data on hospital admissions, open the Atlas map, navigate to the right-hand side pane, and type 'alcohol related' in the search box. If data is available, select the subcategory of interest from the drop-down options.'"
-             "\n4. If the user asks about 'latest data' or data for a specific period, let them know they should first search for their theme of interest. They can then filter the data by clicking the 'calendar' icon and selecting the relevant year."
-             "\n5. Always relate your responses to the user's original query, regardless of the theme or indicator."
-             "\n6. Never interpret the data, even if the user asks you to. Instead, explain that you can only assist with map navigation queries."
-             "\n7. If data is available, provide the exact information exactly as it appears in the text file, without making any changes."
+             "\n5. If the user asks about 'latest data' or data for a specific period, let them know they should first search for their theme of interest. They can then filter the data by clicking the 'calendar' icon and selecting the relevant year."
+             "\n6. Always relate your responses to the user's original query, regardless of the theme or indicator."
+             "\n7. Never interpret the data, even if the user asks you to. Instead, explain that you can only assist with map navigation queries."
+             "\n8. If data is available, provide the exact information exactly as it appears in the text file, without making any changes."
              "\n   For example, if the user asks how results are calculated, always respond with the exact wording provided: 'For more information about how results were calculated, refer to Homepage -> Main Menu options -> Technical Information.'"
-             "\n8. If you provide information about external resources, such as the Australian Bureau of Statistics (ABS) website, include a correct and functional clickable link to the relevant site."),
+             "\n9. If you provide information about external resources, such as the Australian Bureau of Statistics (ABS) website, include a correct and functional clickable link to the relevant site."),
             MessagesPlaceholder(variable_name="chat_history"),
             ("human", "{input}"),
             ("system", 
@@ -117,24 +120,35 @@ class Assistant:
 
     # Process user input and generate response
     def process_chat(self, question):
+        start_time = datetime.now()
+        
         response = self.chain.invoke({
             "input": question,
             "chat_history": self.chat_history,
             "context": self.context
         })
-        self.log_to_csv(question, response["answer"])
+        
+        end_time = datetime.now()  # Timestamp after response is generated
+
+        # Calculate response time
+        response_time = (end_time - start_time).total_seconds()
+        
+        self.log_to_csv(question, response["answer"], response_time)
         self.log_chat_history(question, response["answer"])
+        
         self.chat_history.append(HumanMessage(content=question))
         main_answer, follow_up = self.split_response(response["answer"])
+        
         self.chat_history.append(AIMessage(content=main_answer))
         self.question_count += 1
+        
         return main_answer, follow_up
 
     # Log to CSV file
-    def log_to_csv(self, question, answer):
+    def log_to_csv(self, question, answer, response_time):
         with open(log_filename_csv, mode='a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow([question, answer])
+            writer.writerow([question, answer, response_time])
 
     # Log chat entry to TXT file
     def log_chat_history(self, question, answer):
@@ -171,6 +185,14 @@ def download_logs():
         return send_file(log_filename_csv, as_attachment=True)
     except FileNotFoundError:
         return jsonify({"error": "Log file not found."}), 404
+
+# Define endpoint for downloading TXT logs
+@app.route("/download_logs_txt", methods=["GET"])
+def download_logs_txt():
+    try:
+        return send_file(log_filename_txt, as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Run the Flask app
 if __name__ == '__main__':
